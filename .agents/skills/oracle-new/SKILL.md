@@ -5,27 +5,25 @@ description: Start a change from a GitHub issue, creating a linked branch and ch
 
 # /oracle-new — Start a Change from a GitHub Issue
 
-Create one end-to-end change record from an existing GitHub issue. The input may be an issue number or a standard issue URL for this repository. This skill reads and assigns the issue with GitHub CLI, derives a concise branch name from its title, publishes the branch, and writes `change.md`.
+Create one end-to-end change record from an existing GitHub issue. The input must be a standard issue URL for this repository. This skill reads and assigns the issue with GitHub CLI, derives a concise branch name from its title, publishes the branch, and writes `change.md`.
 
 ## Input
 
-The command accepts zero or one argument. When supplied, `<issue-ref>` must be either a positive integer GitHub issue number or a standard issue URL for the repository associated with the current directory:
+The command accepts zero or one argument. When supplied, `<issue-ref>` must be a standard GitHub issue URL for the repository associated with the current directory:
 
 ```text
-/oracle-new 123
 /oracle-new https://github.com/OWNER/REPO/issues/123
 ```
 
 If no argument is supplied, respond and stop:
 
 ```text
-I'll start a change from a GitHub issue. Please provide its issue number or link:
+I'll start a change from a GitHub issue. Please provide its URL:
 
-  /oracle-new 123
   /oracle-new https://github.com/OWNER/REPO/issues/123
 ```
 
-If more than one argument is supplied, respond with `error: provide only one GitHub issue number or issue URL (for example, /oracle-new 123).` and stop.
+If more than one argument is supplied, respond with `error: provide only one GitHub issue URL (for example, /oracle-new https://github.com/OWNER/REPO/issues/123).` and stop.
 
 ## Validation and issue lookup
 
@@ -41,10 +39,8 @@ Before creating or switching any branch:
 
    The login command opens GitHub's authorization flow and may display a one-time device code. The user must complete the login or authorization prompt. If login or the repeated status check fails, report the CLI error and stop. Do not attempt an additional login or make any Git/context mutation before authentication succeeds.
 3. Resolve the GitHub repository associated with the current directory from `git remote get-url origin`. Accept an HTTPS or SSH GitHub.com origin and normalize it to `<owner>/<repo>`; if `origin` is missing or cannot be normalized to GitHub.com, report the Git error or `error: origin must identify a GitHub.com owner/repository.` and stop.
-4. Normalize `<issue-ref>` to `<gh-id>`:
-   - A positive integer matching `^[1-9][0-9]*$` is a valid issue number.
-   - Otherwise accept only `https://github.com/<owner>/<repo>/issues/<number>` with an optional trailing slash, where `<number>` matches `^[1-9][0-9]*$`. Reject query strings, fragments, API URLs, GitHub Enterprise URLs, issue-comment URLs, and every other URL form with `error: GitHub issue reference "<issue-ref>" must be a positive issue number or a standard issue URL for this repository.`
-   - For a URL, require its `<owner>/<repo>` to exactly match the normalized `origin`; on mismatch, respond with `error: GitHub issue URL must reference this repository (<owner>/<repo>).` and stop.
+4. Normalize `<issue-ref>` to `<gh-id>` by accepting only `https://github.com/<owner>/<repo>/issues/<number>` with an optional trailing slash, where `<number>` matches `^[1-9][0-9]*$`. Reject bare issue numbers, query strings, fragments, API URLs, GitHub Enterprise URLs, issue-comment URLs, and every other URL form with `error: GitHub issue reference "<issue-ref>" must be a standard issue URL for this repository.`
+   - Require the URL's `<owner>/<repo>` to exactly match the normalized `origin`; on mismatch, respond with `error: GitHub issue URL must reference this repository (<owner>/<repo>).` and stop.
 5. Fetch the issue from that normalized repository:
 
    ```bash
@@ -96,13 +92,12 @@ Only after branch setup succeeds or the already-checked-out case applies:
    created: <YYYY-MM-DD>
    updated: <YYYY-MM-DD>
    archived_at: null
-   github_issue: <gh-id>
-   github_issue_url: <issue-url>
+   issue_url: <issue-url>
    ---
 
    ## Notes
 
-   GitHub issue #<gh-id>: <issue-url>
+   GitHub issue: <issue-url>
    ```
 
    Preserve the issue title exactly except as required for valid YAML quoting. Do not copy the issue body or comments.
@@ -112,7 +107,7 @@ Only after branch setup succeeds or the already-checked-out case applies:
 Set and copy this command to the clipboard when possible:
 
 ```bash
-NEXT_CMD="/10x-plan <change-id>"
+NEXT_CMD="/oracle-plan <change-id>"
 echo -n "$NEXT_CMD" | pbcopy 2>/dev/null || echo -n "$NEXT_CMD" | clip.exe 2>/dev/null || echo -n "$NEXT_CMD" | xclip -selection clipboard 2>/dev/null || true
 ```
 
@@ -124,7 +119,7 @@ Then display:
 ✓ On branch <branch> tracking origin/<branch>
 
 Next step:
-  → /10x-plan <change-id>
+  → /oracle-plan <change-id>
 ```
 
 ## Verification guidance
@@ -133,10 +128,9 @@ Run this matrix in a disposable repository with a reachable bare `origin` and a 
 
 | Scenario | Setup / input | Expected outcome |
 | --- | --- | --- |
-| Open issue ID, three-word slug | Run `/oracle-new 123` against an open issue title yielding three meaningful words. | The issue is read from the normalized `origin` repo, assigned with `--add-assignee @me`, and creates/pushes `gh-123-<three-word-slug>` from freshly fetched `origin/main`. The branch tracks only `origin/<branch>`; `change.md` records the returned issue number, canonical URL, and Notes link. |
-| Open issue URL, four-word slug | Run with the equivalent standard same-repository issue URL and a title whose fourth specific term is needed. | It follows the same path as an ID, creates the same ID-derived naming form with a valid four-word slug, assigns the issue once, and writes the same GitHub metadata contract. |
-| No input | Run `/oracle-new` without an argument. | It prompts for an issue number or standard issue URL and stops without a GitHub, Git, or context mutation. |
-| Invalid or unsupported reference | Use zero, a non-numeric token, a query/fragment URL, API/Enterprise/comment URL, or multiple arguments. | It reports the input error and stops without `gh issue view`, assignment, Git mutation, or a new change folder. |
+| Open issue URL | Run `/oracle-new https://github.com/<owner>/<repo>/issues/123` against an open issue title yielding a three- or four-word slug. | The issue is read from the normalized `origin` repo, assigned with `--add-assignee @me`, and creates/pushes the ID-derived branch from freshly fetched `origin/main`. The branch tracks only `origin/<branch>`; `change.md` records the returned issue number, canonical URL, and Notes link. |
+| No input | Run `/oracle-new` without an argument. | It prompts for a GitHub issue URL and stops without a GitHub, Git, or context mutation. |
+| Invalid or unsupported reference | Use a bare issue number, zero, a non-numeric token, a query/fragment URL, API/Enterprise/comment URL, or multiple arguments. | It reports the input error and stops without `gh issue view`, assignment, Git mutation, or a new change folder. |
 | Cross-repository URL | Use a standard issue URL whose owner/repo differs from normalized `origin`. | It reports the repository mismatch and stops without issue lookup, assignment, Git mutation, or a new change folder. |
 | Authentication recovery or issue lookup failure | Make the initial `gh auth status` fail, then verify `gh auth login -h github.com --web -s project` runs once before authentication is re-checked; separately, make login, the repeated status check, or `gh issue view` fail. | A successful browser login continues to lookup. Any remaining authentication or issue-lookup error is reported and stops without assignment, Git mutation, or a new change folder. |
 | Closed issue | Return a non-open state from `gh issue view`. | It reports `error: GitHub issue #<gh-id> is <state>, not open.` and stops without assignment, Git mutation, or a new change folder. |

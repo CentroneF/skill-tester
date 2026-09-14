@@ -615,6 +615,38 @@ For non-software: structure, workflow, key dependencies.]
 
 5. **Continue refining** until the user is satisfied
 
+### Step 6: Offer an opt-in planning commit after final acceptance
+
+Do not offer, stage, or make a commit while the user is reviewing the plan or requesting refinements. When the user explicitly confirms that the final plan is satisfactory, offer this follow-up; a new refinement defers the offer until that revised plan is accepted.
+
+1. Retain only the planning artifacts created or updated by this `/oracle-plan` invocation:
+
+   - `context/changes/<change-id>/change.md` when this run created or updated it
+   - `context/changes/<change-id>/plan.md`
+   - `context/changes/<change-id>/plan-brief.md`
+
+   Do not infer additional files from `git status`, and do not include unrelated dirty or already-staged paths. If none of these retained paths has a diff from this run, report `No accepted planning artifacts changed; no commit was created.` and stop.
+
+2. Show the exact retained paths and suggest this message:
+
+   ```text
+   docs: plan <change-id>
+   ```
+
+   Ask: `Would you like to commit these accepted planning artifacts?` Offer these choices:
+
+   - `Commit with suggested message (Recommended)` — stage and commit only the listed artifacts.
+   - `Customize message` — let the user provide a replacement commit subject before staging or committing.
+   - `Skip` — leave the branch, index, and working tree unchanged.
+
+3. On `Skip`, report that no commit was created and stop. On either commit choice, confirm this is a Git worktree with `git rev-parse --is-inside-work-tree`; if that fails, report the Git error and stop without staging or committing.
+
+4. Stage only the retained paths individually with explicit path arguments. Never use `git add .` or `git add -A`. Before committing, display the exact path list and selected message, then require the user’s explicit approval.
+
+5. Commit only the retained paths. Use a path-restricted, non-amending commit so unrelated entries already present in the index cannot be included. Do not create, switch, push, or delete a branch; do not amend or bypass hooks. If Git reports no path-scoped diff or the commit fails, report the result and stop without retrying through broader staging.
+
+6. After a successful commit, run `git rev-parse --short HEAD` and report the short SHA, commit subject, and included paths. Then stop.
+
 ## Important Guidelines
 
 1. **Be Skeptical**:
