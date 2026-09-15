@@ -17,6 +17,8 @@ flowchart TD
     I -- Yes --> J[Triage approved fixes or record decisions]
     I -- No --> K[Implementation approved]
     J --> K
+    K --> L["/oracle-archive change-id"]
+    L --> M[Move change record to context archive and commit]
 ```
 
 ## Skills
@@ -188,6 +190,36 @@ flowchart TD
     I --> K
 ```
 
+### `/oracle-archive`
+
+Closes an active change by moving its record to `context/archive/` and marking it archived.
+
+```text
+/oracle-archive gh-123-example-change
+```
+
+You can also provide the active change folder:
+
+```text
+/oracle-archive @context/changes/gh-123-example-change/
+```
+
+The skill blocks if the change folder or Git index has uncommitted work. It otherwise surfaces incomplete progress, missing review reports, or missing progress SHAs as warnings and lets you decide whether to continue. On archive, it updates `change.md`, moves the folder to `context/archive/<created-date>-<change-id>/`, and creates a scoped `chore(archive)` commit. If a matching item exists in `context/foundation/roadmap.md`, it is marked done as part of the same archive operation.
+
+```mermaid
+flowchart TD
+    A[Provide an active change ID or folder] --> B[Check change record and Git state]
+    B --> C{Uncommitted change-folder or staged work?}
+    C -- Yes --> X[Stop without moving files]
+    C -- No --> D[Surface lifecycle warnings]
+    D --> E{Archive anyway?}
+    E -- No --> Y[Leave active change unchanged]
+    E -- Yes --> F[Stamp change.md as archived]
+    F --> G[Move folder to context archive]
+    G --> H[Close matching roadmap item when present]
+    H --> I[Commit archive operation]
+```
+
 ## Typical session
 
 ```text
@@ -195,6 +227,7 @@ flowchart TD
 /oracle-plan gh-123-example-change
 /oracle-implement gh-123-example-change
 /oracle-impl-review gh-123-example-change
+/oracle-archive gh-123-example-change
 ```
 
 If this is a new repository and `context/changes/` does not exist, run `/oracle-init` once before starting the session.
@@ -211,7 +244,7 @@ Each active change has its own directory under `context/changes/<change-id>/`. C
 | `plan-brief.md` | A short, stakeholder-friendly plan summary. |
 | `reviews/` | Saved implementation-review reports and triage decisions. |
 
-`context/archive/` is reserved for completed change records and is read-only by convention. Some skill text refers to `/oracle-archive` and `/oracle-status`; those skills are not currently included in this repository, so use the five skills documented above as the available workflow.
+`context/archive/` holds completed change records and is read-only by convention. `/oracle-archive` moves a completed active record there. Some skill text also refers to `/oracle-status`; that skill is not currently included in this repository.
 
 ## Conventions and safety
 
